@@ -3,11 +3,11 @@ import { StyleSheet } from 'react-native';
 export const colors = {
   primary: '#525199ff',
   secondary: '#759b43ff',
-  background: '#a1b9daff',
+  background: '#dce3eeff',
   text: '#000000',
   textSecondary: '#525258ff',
   success: '#34C759',
-  error: '#FF3B30',
+  error: '#e2564eff',
 };
 
 export const globalStyles = StyleSheet.create({

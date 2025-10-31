@@ -215,7 +215,7 @@ const GroupsScreen = () => {
 
         {/* 🔹 Category Tabs */}
 
-        <View style={{}}>
+        <View style={{ marginVertical: 8 }}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
