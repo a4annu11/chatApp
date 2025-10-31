@@ -719,6 +719,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
+    position: 'relative',
   },
   iconWrap: {
     backgroundColor: colors.primary,
@@ -741,9 +742,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     minWidth: 22,
     height: 22,
+    position: 'absolute',
+    right: 20,
+    bottom: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 6,
+    // marginLeft: 6,
   },
   badgeText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
   emptyText: {

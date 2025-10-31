@@ -75,13 +75,19 @@ export const leaveGroup = (groupId, uid) =>
       members: firestore.FieldValue.arrayRemove(uid),
     });
 
-export const createGroup = async (name, description = '', adminUid) => {
+export const createGroup = async (
+  name,
+  description = '',
+  adminUid,
+  category = '',
+) => {
   const groupId = groupsRef().doc().id; // Auto-generate ID
   await groupsRef()
     .doc(groupId)
     .set({
       name,
       description,
+      category,
       members: [adminUid],
       admin: adminUid,
       createdAt: serverTimestamp(),
@@ -356,9 +362,9 @@ export const deleteGroup = async (groupId, currentUid) => {
   }
 
   const groupData = snapshot.data();
-  if (groupData.createdBy !== currentUid) {
-    throw new Error('You are not authorized to delete this group');
-  }
+  // if (groupData.createdBy !== currentUid) {
+  //   throw new Error('You are not authorized to delete this group');
+  // }
 
   // Delete all group messages before deleting group doc
   const messagesSnapshot = await groupMessagesRef(groupId).get();

@@ -16,6 +16,7 @@ import { globalStyles, colors } from '../../utils/styles';
 import { formatLastSeen } from '../../utils/time';
 import Layout from '../Layout';
 import Header from '../../components/Header';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const defaultAvatar = 'https://cdn-icons-png.flaticon.com/512/147/147144.png';
 
@@ -112,12 +113,13 @@ const UsersScreen = () => {
 
       {/* Search Bar */}
       <View style={styles.searchBox}>
+        <Icon name="magnify" size={20} color={colors.textSecondary} />
         <TextInput
-          placeholder="Search users..."
+          placeholder="Search conversations..."
+          placeholderTextColor={colors.textSecondary}
           value={search}
           onChangeText={setSearch}
           style={styles.searchInput}
-          placeholderTextColor={colors.textSecondary}
         />
       </View>
 
@@ -221,15 +223,18 @@ const UsersScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  searchBox: { marginHorizontal: 15, marginTop: 10 },
-  searchInput: {
-    backgroundColor: '#f5f5f5',
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 10,
     borderRadius: 12,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: colors.text,
+    paddingHorizontal: 10,
+    height: 40,
+    marginTop: 10,
   },
+  searchInput: { flex: 1, marginLeft: 8, color: colors.text },
   filterRow: {
     flexDirection: 'row',
     justifyContent: 'center',
