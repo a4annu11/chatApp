@@ -390,6 +390,23 @@ const MessagesScreen = () => {
   const [loading, setLoading] = useState(true);
   const navigation: any = useNavigation();
   const currentUid = currentUser()?.uid;
+  const [filterType, setFilterType] = useState<'all' | 'chats' | 'groups'>(
+    'all',
+  );
+
+  useEffect(() => {
+    let f = conversations.filter(c =>
+      c.title.toLowerCase().includes(search.toLowerCase()),
+    );
+
+    if (filterType === 'chats') {
+      f = f.filter(c => c.type === 'chat');
+    } else if (filterType === 'groups') {
+      f = f.filter(c => c.type === 'group');
+    }
+
+    setFiltered(f);
+  }, [search, conversations, filterType]);
 
   const updateConversationLocally = useCallback(
     (convId: string, updates: any) => {
@@ -571,6 +588,33 @@ const MessagesScreen = () => {
           />
         </View>
 
+        {/* Filter Tabs */}
+        <View style={styles.tabsContainer}>
+          {[
+            { key: 'all', label: 'All' },
+            { key: 'chats', label: 'Chats' },
+            { key: 'groups', label: 'Groups' },
+          ].map(tab => (
+            <TouchableOpacity
+              key={tab.key}
+              onPress={() => setFilterType(tab.key as any)}
+              style={[
+                styles.tabButton,
+                filterType === tab.key && styles.tabButtonActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  filterType === tab.key && styles.tabTextActive,
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* Conversations */}
         <FlatList
           data={filtered}
@@ -719,6 +763,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 6,
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 8,
+    // justifyContent: 'space-evenly',
+    // backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 18,
+    paddingVertical: 6,
+    gap: 10,
+    // shadowColor: '#000',
+    // shadowOpacity: 0.05,
+    // shadowRadius: 2,
+    // elevation: 2,
+  },
+  tabButton: {
+    // flex: 1,
+    alignItems: 'center',
+    paddingVertical: 4,
+    borderRadius: 18,
+    width: 65,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  tabButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  tabText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  tabTextActive: {
+    color: '#fff',
+    fontWeight: '700',
   },
 });
 
