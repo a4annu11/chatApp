@@ -1,54 +1,67 @@
+// src/screens/main/UsersScreen.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  FlatList,
   Text,
-  ActivityIndicator,
+  FlatList,
+  Image,
   TextInput,
   TouchableOpacity,
+  ActivityIndicator,
   StyleSheet,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { usersRef, currentUser } from '../../services/firebase';
 import { globalStyles, colors } from '../../utils/styles';
-import Header from '../../components/Header'; // If using
 import { formatLastSeen } from '../../utils/time';
 import Layout from '../Layout';
+import Header from '../../components/Header';
+
+const defaultAvatar = 'https://cdn-icons-png.flaticon.com/512/147/147144.png';
 
 const UsersScreen = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
+
   const navigation: any = useNavigation();
   const currentUid = currentUser()?.uid;
 
   useEffect(() => {
+    if (!currentUid) return;
     const unsubscribe = usersRef()
       .where('uid', '!=', currentUid)
-      .onSnapshot(snapshot => {
-        const userList = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setUsers(userList);
-        setFilteredUsers(userList);
+      .onSnapshot(snap => {
+        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setUsers(list);
+        setFilteredUsers(list);
         setLoading(false);
       });
     return unsubscribe;
   }, [currentUid]);
 
+  // 🔍 Search and filter
   useEffect(() => {
-    const filtered = users.filter(user =>
-      user.name.toLowerCase().includes(search.toLowerCase()),
-    );
-    setFilteredUsers(filtered);
-  }, [search, users]);
+    let data = [...users];
+    if (filter === 'online') data = data.filter(u => u.isOnline);
+    if (filter === 'recent')
+      data = data.sort((a, b) => b.lastSeen?.seconds - a.lastSeen?.seconds);
+    if (search)
+      data = data.filter(u =>
+        u.name?.toLowerCase().includes(search.toLowerCase()),
+      );
+    setFilteredUsers(data);
+  }, [search, filter, users]);
 
   const startChat = (otherUser: any) => {
     const chatId = [currentUid, otherUser.uid].sort().join('_');
     navigation.navigate('Chat', { chatId, otherUser });
   };
+
+  const openProfile = (otherUser: any) =>
+    navigation.navigate('UserProfile', { userId: otherUser.uid });
 
   if (loading) {
     return (
@@ -60,72 +73,248 @@ const UsersScreen = () => {
     );
   }
 
+  // 🟢 Active Users (online)
+  const activeUsers = users.filter(u => u.isOnline);
+
   return (
-    <Layout statusBarColor={colors.primary}>
-      <View style={globalStyles.container}>
-        <Header title="Users" />
+    <Layout>
+      {/* <Header title="Match Your Vibe 🎉" /> */}
+
+      <View
+        style={{
+          marginHorizontal: 15,
+          marginTop: 10,
+          padding: 15,
+          borderRadius: 16,
+          backgroundColor: colors.primary,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 20,
+            fontWeight: 'bold',
+            color: '#fff',
+          }}
+        >
+          Match Your Vibe 🎉
+        </Text>
+        <Text
+          style={{
+            fontSize: 16,
+            fontWeight: 'normal',
+            color: '#bdb5b5ff',
+            fontStyle: 'italic',
+          }}
+        >
+          A open world of connections
+        </Text>
+      </View>
+
+      {/* Search Bar */}
+      <View style={styles.searchBox}>
         <TextInput
-          style={[globalStyles.input, { margin: 15 }]}
           placeholder="Search users..."
           value={search}
           onChangeText={setSearch}
+          style={styles.searchInput}
+          placeholderTextColor={colors.textSecondary}
         />
-        <FlatList
-          data={filteredUsers}
-          keyExtractor={(item: any) => item.uid}
-          renderItem={({ item }: any) => (
-            <TouchableOpacity
-              onPress={() => startChat(item)}
-              style={styles.userItem}
+      </View>
+
+      {/* Filter Row */}
+      <View style={styles.filterRow}>
+        {['all', 'online', 'recent'].map(type => (
+          <TouchableOpacity
+            key={type}
+            onPress={() => setFilter(type)}
+            style={[
+              styles.filterBtn,
+              filter === type && { backgroundColor: colors.primary },
+            ]}
+          >
+            <Text
+              style={[
+                styles.filterText,
+                filter === type && { color: '#fff', fontWeight: '700' },
+              ]}
             >
-              <View style={styles.userInfo}>
+              {type === 'all' ? 'All' : type === 'online' ? 'Online' : 'Recent'}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Active Now */}
+      {activeUsers.length > 0 && (
+        <View style={styles.activeNowContainer}>
+          <Text style={styles.sectionTitle}>Active Now</Text>
+          <FlatList
+            data={activeUsers}
+            horizontal
+            keyExtractor={item => item.uid}
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                onPress={() => startChat(item)}
+                style={styles.activeUserCard}
+              >
+                <Image
+                  source={{ uri: item.photoURL || defaultAvatar }}
+                  style={styles.activeAvatar}
+                />
+                <View style={styles.onlineDot} />
+                <Text style={styles.activeName}>
+                  {item.name?.split(' ')[0]}
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      )}
+
+      {/* User List */}
+      <FlatList
+        data={filteredUsers}
+        keyExtractor={item => item.uid}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>No users found 👀</Text>
+        }
+        renderItem={({ item }) => (
+          <View style={styles.userCard}>
+            <View style={styles.userRow}>
+              <Image
+                source={{ uri: item.photoURL || defaultAvatar }}
+                style={styles.avatar}
+              />
+              <View style={{ flex: 1 }}>
                 <Text style={styles.userName}>{item.name}</Text>
                 <Text style={styles.userEmail}>{item.email}</Text>
+                <Text style={styles.statusText}>
+                  {item.isOnline
+                    ? '🟢 Online'
+                    : `Last seen ${formatLastSeen(item.lastSeen)}`}
+                </Text>
               </View>
+            </View>
 
-              <Text style={styles.status}>
-                {item.isOnline
-                  ? 'Online'
-                  : `Last seen ${formatLastSeen(item.lastSeen)}`}
-              </Text>
-            </TouchableOpacity>
-          )}
-        />
-        {filteredUsers.length === 0 && (
-          <Text style={styles.emptyText}>
-            No users found. Try a different search.
-          </Text>
+            <View style={styles.actions}>
+              <TouchableOpacity
+                style={styles.msgBtn}
+                onPress={() => startChat(item)}
+              >
+                <Text style={styles.btnText}>Message</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.viewBtn}
+                onPress={() => openProfile(item)}
+              >
+                <Text style={[styles.btnText, { color: colors.primary }]}>
+                  View
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         )}
-      </View>
+      />
     </Layout>
   );
 };
 
 const styles = StyleSheet.create({
-  userItem: {
+  searchBox: { marginHorizontal: 15, marginTop: 10 },
+  searchInput: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: colors.text,
+  },
+  filterRow: {
     flexDirection: 'row',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.textSecondary,
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    marginVertical: 10,
   },
-  userInfo: {
-    flex: 1,
+  filterBtn: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    marginHorizontal: 5,
   },
-  userName: {
+  filterText: { color: colors.primary, fontWeight: '500' },
+  activeNowContainer: { marginVertical: 10, paddingLeft: 15 },
+  sectionTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 6,
   },
-  userEmail: {
-    fontSize: 14,
-    color: colors.textSecondary,
+  activeUserCard: { marginRight: 15, alignItems: 'center' },
+  activeAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginBottom: 4,
   },
-  status: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'right',
+  onlineDot: {
+    position: 'absolute',
+    right: 6,
+    top: 6,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#2ecc71',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
+  activeName: { fontSize: 12, color: colors.text },
+  userCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 15,
+    marginHorizontal: 15,
+    marginVertical: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  avatar: {
+    width: 55,
+    height: 55,
+    borderRadius: 30,
+    marginRight: 15,
+    backgroundColor: '#eee',
+  },
+  userName: { fontSize: 17, fontWeight: 'bold', color: colors.text },
+  userEmail: { fontSize: 13, color: colors.textSecondary },
+  statusText: { fontSize: 12, color: colors.textSecondary, marginTop: 4 },
+  actions: { flexDirection: 'row', justifyContent: 'space-between' },
+  msgBtn: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginRight: 5,
+  },
+  viewBtn: {
+    flex: 1,
+    borderColor: colors.primary,
+    borderWidth: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginLeft: 5,
+  },
+  btnText: { fontWeight: '600', fontSize: 14, color: '#fff' },
   emptyText: {
     textAlign: 'center',
     color: colors.textSecondary,

@@ -247,3 +247,126 @@ export const initializeChatDoc = async (chatId, participants, isGroup) => {
     console.error('Initialize chat doc error:', error);
   }
 };
+
+// User activity summary
+export const getUserActivityStats = async uid => {
+  try {
+    const [userChats, userGroups] = await Promise.all([
+      fetchUserChats(uid),
+      fetchUserGroups(uid),
+    ]);
+
+    let sent = 0;
+    let received = 0;
+
+    // Count messages in all chats (lightweight, summary-style)
+    for (const chat of userChats) {
+      const messagesSnap = await chatsRef(chat.id).get();
+      messagesSnap.docs.forEach(doc => {
+        const msg = doc.data();
+        if (msg.senderUid === uid) sent++;
+        else received++;
+      });
+    }
+
+    return {
+      messagesSent: sent,
+      messagesReceived: received,
+      groupsJoined: userGroups.length,
+    };
+  } catch (error) {
+    console.error('Error fetching user activity stats:', error);
+    return { messagesSent: 0, messagesReceived: 0, groupsJoined: 0 };
+  }
+};
+
+// ✅ Suggested Friends (exclude current user + already chatted users)
+export const fetchSuggestedFriends = async uid => {
+  try {
+    const [allUsersSnap, userChats] = await Promise.all([
+      usersRef().get(),
+      fetchUserChats(uid),
+    ]);
+
+    const chattedUserIds = userChats.map(chat =>
+      chat.participants.find(id => id !== uid),
+    );
+
+    const allUsers = allUsersSnap.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(user => user.id !== uid && !chattedUserIds.includes(user.id));
+
+    // Shuffle + limit to 5
+    return allUsers.sort(() => 0.5 - Math.random()).slice(0, 5);
+  } catch (err) {
+    console.error('Error fetching suggested friends:', err);
+    return [];
+  }
+};
+
+// ✅ Chat Streaks (based on last active days)
+export const getChatStreak = async uid => {
+  try {
+    const chats = await fetchUserChats(uid);
+    const today = new Date();
+    const activeDays = new Set();
+
+    for (const chat of chats) {
+      const messagesSnap = await chatsRef(chat.id)
+        .orderBy('createdAt', 'desc')
+        .limit(50)
+        .get();
+
+      messagesSnap.docs.forEach(doc => {
+        const msg = doc.data();
+        if (msg.senderUid === uid && msg.createdAt?.toDate) {
+          const d = msg.createdAt.toDate();
+          const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+          activeDays.add(key);
+        }
+      });
+    }
+
+    // Calculate streak: consecutive days including today
+    let streak = 0;
+    let checkDate = new Date();
+
+    while (true) {
+      const key = `${checkDate.getFullYear()}-${checkDate.getMonth()}-${checkDate.getDate()}`;
+      if (activeDays.has(key)) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else break;
+    }
+
+    return streak;
+  } catch (err) {
+    console.error('Error fetching chat streak:', err);
+    return 0;
+  }
+};
+
+// Delete a group — only allowed for admin/creator
+export const deleteGroup = async (groupId, currentUid) => {
+  const groupDoc = groupsRef().doc(groupId);
+  const snapshot = await groupDoc.get();
+
+  if (!snapshot.exists) {
+    throw new Error('Group not found');
+  }
+
+  const groupData = snapshot.data();
+  if (groupData.createdBy !== currentUid) {
+    throw new Error('You are not authorized to delete this group');
+  }
+
+  // Delete all group messages before deleting group doc
+  const messagesSnapshot = await groupMessagesRef(groupId).get();
+  const batch = firestore().batch();
+
+  messagesSnapshot.forEach(doc => batch.delete(doc.ref));
+  batch.delete(groupDoc);
+
+  await batch.commit();
+  console.log(`Group ${groupData.name} deleted successfully`);
+};
