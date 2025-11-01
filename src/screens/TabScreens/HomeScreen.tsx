@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 15,
     elevation: 2,
-    marginBottom: 40,
+    marginBottom: 20,
   },
   infoText: { color: colors.text, fontSize: 14, marginVertical: 4 },
   streakCard: {

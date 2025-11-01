@@ -4,7 +4,12 @@ import { useTheme } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../utils/styles';
 
-const Layout = ({ children, marginHorizontal, statusBarColor }: any) => {
+const Layout = ({
+  children,
+  marginHorizontal,
+  statusBarColor,
+  paddingBottom,
+}: any) => {
   const scheme = useColorScheme();
 
   return (
@@ -28,6 +33,7 @@ const Layout = ({ children, marginHorizontal, statusBarColor }: any) => {
           backgroundColor: colors.background,
           // marginHorizontal: marginHorizontal === 0 ? marginHorizontal : 16,
           // marginTop: mobileH * 0.01,
+          paddingBottom: paddingBottom ? paddingBottom : 65,
         }}
       >
         {children}

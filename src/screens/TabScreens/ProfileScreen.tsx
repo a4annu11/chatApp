@@ -219,7 +219,7 @@ const ProfileScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { paddingBottom: 40 },
+  container: { paddingBottom: 20 },
   profileHeader: {
     alignItems: 'center',
     paddingVertical: 30,

@@ -561,7 +561,9 @@ const App = () => {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView
+      style={{ flex: 1, backgroundColor: colors.background }}
+    >
       <NavigationContainer>
         <SafeAreaView
           edges={['bottom']}

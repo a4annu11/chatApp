@@ -18,6 +18,7 @@ export const chatsRef = chatId =>
   firestore().collection('chats').doc(chatId).collection('messages');
 export const serverTimestamp = () => firestore.FieldValue.serverTimestamp();
 export const chatDocRef = chatId => firestore().collection('chats').doc(chatId);
+// export const serverTimestamp = () => firestore.FieldValue.serverTimestamp();
 
 // Setup online/offline listener (call once in App.js)
 export const setupConnectionListener = uid => {
@@ -44,16 +45,29 @@ export const setupConnectionListener = uid => {
 };
 
 // For typing: Update chat doc
-export const updateTypingStatus = (chatId, uid, isTyping) => {
-  const chatDoc = firestore().collection('chats').doc(chatId);
-  if (isTyping) {
-    chatDoc.update({
-      typingBy: firestore.FieldValue.arrayUnion(uid),
-    });
-  } else {
-    chatDoc.update({
-      typingBy: firestore.FieldValue.arrayRemove(uid),
-    });
+// For typing: Update chat doc
+export const updateTypingStatus = async (chatId, uid, isTyping) => {
+  try {
+    const chatDoc = firestore().collection('chats').doc(chatId);
+
+    // Check if document exists first
+    const snapshot = await chatDoc.get();
+    if (!snapshot.exists) {
+      console.warn('Chat document does not exist:', chatId);
+      return;
+    }
+
+    if (isTyping) {
+      await chatDoc.update({
+        typingBy: firestore.FieldValue.arrayUnion(uid),
+      });
+    } else {
+      await chatDoc.update({
+        typingBy: firestore.FieldValue.arrayRemove(uid),
+      });
+    }
+  } catch (error) {
+    console.error('Update typing status error:', error);
   }
 };
 
@@ -90,7 +104,7 @@ export const createGroup = async (
       category,
       members: [adminUid],
       admin: adminUid,
-      createdAt: serverTimestamp(),
+      createdAt: firestore.FieldValue.serverTimestamp(),
     });
   return groupId;
 };
@@ -230,27 +244,83 @@ export const getUnreadCountFast = async (chatId, userId) => {
 };
 
 // Initialize chat document with participants
+// Initialize chat document with participants
+// Initialize chat document with participants
+// Initialize chat document with participants
 export const initializeChatDoc = async (chatId, participants, isGroup) => {
   try {
     const chatDoc = chatDocRef(chatId);
     const snapshot = await chatDoc.get();
 
     if (!snapshot.exists) {
+      console.log('Creating new chat document:', chatId);
+      console.log('Participants:', participants);
+      console.log('Is group:', isGroup);
+
       // Initialize with 0 unread for all participants
       const unreadCount = {};
       participants.forEach(uid => {
         unreadCount[uid] = 0;
       });
 
-      await chatDoc.set({
-        ...(isGroup ? { members: participants } : { participants }),
-        createdAt: serverTimestamp(),
+      const dataToSave = {
+        participants: participants, // Always set participants for 1:1 chats
+        ...(isGroup ? { members: participants } : {}),
+        createdAt: firestore.FieldValue.serverTimestamp(), // Use FieldValue, not the function
         typingBy: [],
         unreadCount,
-      });
+      };
+
+      console.log('💾 Data to save:', JSON.stringify(dataToSave, null, 2));
+
+      await chatDoc.set(dataToSave);
+
+      console.log('✅ Chat document created successfully:', chatId);
+
+      // Verify it was saved
+      const verifySnapshot = await chatDoc.get();
+      console.log('✅ Verification - Document exists:', verifySnapshot.exists);
+      if (verifySnapshot.exists) {
+        const data = verifySnapshot.data();
+        console.log(
+          '✅ Verification - Has participants:',
+          !!data?.participants,
+        );
+        console.log('✅ Verification - Participants:', data?.participants);
+      }
+    } else {
+      const existingData = snapshot.data();
+      console.log('Chat document already exists:', chatId);
+
+      // Check if document has data
+      if (!existingData || !existingData.participants) {
+        console.log('⚠️ Document exists but missing data. Re-initializing...');
+
+        // Fix the broken document
+        const unreadCount = {};
+        participants.forEach(uid => {
+          unreadCount[uid] = 0;
+        });
+
+        await chatDoc.set(
+          {
+            participants: participants,
+            ...(isGroup ? { members: participants } : {}),
+            createdAt: firestore.FieldValue.serverTimestamp(),
+            typingBy: [],
+            unreadCount,
+          },
+          { merge: true },
+        ); // Use merge to not overwrite if there's partial data
+
+        console.log('✅ Document re-initialized with data');
+      } else {
+        console.log('📄 Existing data:', JSON.stringify(existingData, null, 2));
+      }
     }
   } catch (error) {
-    console.error('Initialize chat doc error:', error);
+    console.error('❌ Initialize chat doc error:', error);
+    throw error;
   }
 };
 
@@ -375,4 +445,9 @@ export const deleteGroup = async (groupId, currentUid) => {
 
   await batch.commit();
   console.log(`Group ${groupData.name} deleted successfully`);
+};
+
+// Generate consistent chat ID for 1:1 chats
+export const getChatId = (uid1, uid2) => {
+  return [uid1, uid2].sort().join('_');
 };

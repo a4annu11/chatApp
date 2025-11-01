@@ -11,7 +11,12 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { usersRef, currentUser } from '../../services/firebase';
+import {
+  usersRef,
+  currentUser,
+  getChatId,
+  initializeChatDoc,
+} from '../../services/firebase';
 import { globalStyles, colors } from '../../utils/styles';
 import { formatLastSeen } from '../../utils/time';
 import Layout from '../Layout';
@@ -56,11 +61,33 @@ const UsersScreen = () => {
     setFilteredUsers(data);
   }, [search, filter, users]);
 
-  const startChat = (otherUser: any) => {
-    const chatId = [currentUid, otherUser.uid].sort().join('_');
-    navigation.navigate('Chat', { chatId, otherUser });
-  };
+  // const startChat = (otherUser: any) => {
+  //   const chatId = [currentUid, otherUser.uid].sort().join('_');
+  //   navigation.navigate('Chat', { chatId, otherUser });
+  // };
+  const startChat = async (otherUser: any) => {
+    try {
+      const currentUid = currentUser()?.uid;
+      const chatId = getChatId(currentUid, otherUser.uid);
 
+      // Show loading indicator
+      console.log('Creating chat document...');
+
+      // Create chat document BEFORE navigating and WAIT for it
+      await initializeChatDoc(chatId, [currentUid, otherUser.uid], false);
+
+      console.log('Chat document created:', chatId);
+
+      // Navigate after document is created
+      navigation.navigate('Chat', {
+        chatId,
+        otherUser,
+      });
+    } catch (error) {
+      console.error('Error starting chat:', error);
+      // You might want to show an alert here
+    }
+  };
   const openProfile = (otherUser: any) =>
     navigation.navigate('UserProfile', { userId: otherUser.uid });
 
@@ -177,6 +204,7 @@ const UsersScreen = () => {
       {/* User List */}
       <FlatList
         data={filteredUsers}
+        // style={{ marginBottom: 2 }}
         keyExtractor={item => item.uid}
         ListEmptyComponent={
           <Text style={styles.emptyText}>No users found 👀</Text>
