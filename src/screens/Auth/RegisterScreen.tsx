@@ -6,6 +6,10 @@ import {
   Button,
   Alert,
   ActivityIndicator,
+  StyleSheet,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { globalStyles, colors } from '../../utils/styles';
 import {
@@ -16,6 +20,7 @@ import {
 } from '../../services/firebase';
 import { useNavigation } from '@react-navigation/native';
 import Layout from '../Layout';
+import LinearGradient from 'react-native-linear-gradient';
 
 const RegisterScreen = () => {
   const [name, setName] = useState('');
@@ -54,45 +59,143 @@ const RegisterScreen = () => {
   };
 
   return (
-    <Layout>
-      <View style={[globalStyles.container, { paddingHorizontal: 20 }]}>
-        <Text style={globalStyles.title}>Register</Text>
-        <TextInput
-          style={globalStyles.input}
-          placeholder="Full Name"
-          value={name}
-          onChangeText={setName}
-        />
-        <TextInput
-          style={globalStyles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        <TextInput
-          style={globalStyles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-        <Button
-          title={loading ? 'Creating...' : 'Register'}
-          onPress={handleRegister}
-          disabled={loading}
-          color={colors.primary}
-        />
-        <Text
-          style={globalStyles.link}
-          onPress={() => navigation.navigate('Login')}
-        >
-          Already have an account? Login
-        </Text>
-      </View>
+    <Layout statusBarColor={colors.primary}>
+      <LinearGradient
+        colors={[colors.primary, '#6C63FF']}
+        style={styles.header}
+      >
+        <Text style={styles.headerText}>Create Account ✨</Text>
+        <Text style={styles.subText}>Join us and start chatting</Text>
+      </LinearGradient>
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.container}
+      >
+        <View style={styles.card}>
+          <Text style={styles.title}>Register</Text>
+
+          <TextInput
+            placeholder="Full Name"
+            placeholderTextColor="#aaa"
+            style={styles.input}
+            value={name}
+            onChangeText={setName}
+          />
+
+          <TextInput
+            placeholder="Email"
+            placeholderTextColor="#aaa"
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+
+          <TextInput
+            placeholder="Password"
+            placeholderTextColor="#aaa"
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+
+          <TouchableOpacity
+            style={[styles.button, loading && { opacity: 0.7 }]}
+            onPress={handleRegister}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Register</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+            <Text style={styles.footerText}>
+              Already have an account?{' '}
+              <Text style={styles.linkText}>Login</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </Layout>
   );
 };
+
+const styles = StyleSheet.create({
+  header: {
+    height: 180,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  headerText: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  subText: {
+    color: '#E8E8E8',
+    fontSize: 14,
+    marginTop: 4,
+  },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    marginTop: -40,
+  },
+  card: {
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    borderRadius: 20,
+    padding: 20,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 20,
+    color: colors.primary,
+  },
+  input: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 10,
+    fontSize: 15,
+    color: '#333',
+    marginBottom: 15,
+  },
+  button: {
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  footerText: {
+    textAlign: 'center',
+    color: '#555',
+    marginTop: 20,
+  },
+  linkText: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+});
 
 export default RegisterScreen;

@@ -3234,7 +3234,7 @@ const MessagesScreen = () => {
         {/* Conversations */}
         <FlatList
           data={filtered}
-          keyExtractor={(item: any) => item.id}
+          keyExtractor={(item: any, index: number) => `${item.id}-${index}`}
           renderItem={({ item }: any) => (
             <TouchableOpacity
               onPress={() => openConversation(item)}

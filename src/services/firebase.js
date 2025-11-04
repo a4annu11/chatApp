@@ -451,3 +451,30 @@ export const deleteGroup = async (groupId, currentUid) => {
 export const getChatId = (uid1, uid2) => {
   return [uid1, uid2].sort().join('_');
 };
+
+// Block/Unblock functions
+export const blockUser = async (blockerUid, blockedUid) => {
+  try {
+    await usersRef()
+      .doc(blockerUid)
+      .update({
+        blockedUsers: firestore.FieldValue.arrayUnion(blockedUid),
+      });
+  } catch (error) {
+    console.error('Block user error:', error);
+    throw error;
+  }
+};
+
+export const unblockUser = async (blockerUid, blockedUid) => {
+  try {
+    await usersRef()
+      .doc(blockerUid)
+      .update({
+        blockedUsers: firestore.FieldValue.arrayRemove(blockedUid),
+      });
+  } catch (error) {
+    console.error('Unblock user error:', error);
+    throw error;
+  }
+};
