@@ -21,6 +21,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import Layout from '../Layout';
 import LinearGradient from 'react-native-linear-gradient';
+import { showSuccess, showWarning } from '../../utils/ToastMessage';
 
 const RegisterScreen = () => {
   const [name, setName] = useState('');
@@ -35,7 +36,8 @@ const RegisterScreen = () => {
       return;
     }
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      // Alert.alert('Error', 'Password must be at least 6 characters');
+      showWarning('Password must be at least 6 characters');
       return;
     }
     setLoading(true);
@@ -50,7 +52,8 @@ const RegisterScreen = () => {
         lastSeen: serverTimestamp(),
         isOnline: true,
       });
-      Alert.alert('Success', 'Account created! Logging in...');
+      // Alert.alert('Success', 'Account created! Logging in...');
+      showSuccess('Account created! Logging in...');
       // Navigation handled by auth listener in App.js
     } catch (error: any) {
       Alert.alert('Error', error.message);

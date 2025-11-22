@@ -19,6 +19,8 @@ import {
   getUserActivityStats,
   fetchSuggestedFriends,
   getChatStreak,
+  getChatId,
+  initializeChatDoc,
 } from '../../services/firebase';
 import { globalStyles, colors } from '../../utils/styles';
 import Layout from '../Layout';
@@ -60,6 +62,8 @@ const HomeScreen = () => {
     };
     loadExtras();
   }, [currentUid]);
+
+  console.log('STREAK', streak);
 
   // 🔹 Load user info
   useEffect(() => {
@@ -106,9 +110,28 @@ const HomeScreen = () => {
   const goToUsers = () => navigation.navigate('Users');
   const goToProfile = () => navigation.navigate('Profile');
 
-  const startChat = (otherUser: any) => {
-    const chatId = [currentUid, otherUser.uid].sort().join('_');
-    navigation.navigate('Chat', { chatId, otherUser });
+  const startChat = async (otherUser: any) => {
+    try {
+      const currentUid = currentUser()?.uid;
+      const chatId = getChatId(currentUid, otherUser.uid);
+
+      // Show loading indicator
+      console.log('Creating chat document...');
+
+      // Create chat document BEFORE navigating and WAIT for it
+      await initializeChatDoc(chatId, [currentUid, otherUser.uid], false);
+
+      console.log('Chat document created:', chatId);
+
+      // Navigate after document is created
+      navigation.navigate('Chat', {
+        chatId,
+        otherUser,
+      });
+    } catch (error) {
+      console.error('Error starting chat:', error);
+      // You might want to show an alert here
+    }
   };
 
   if (loading) {

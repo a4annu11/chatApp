@@ -6,9 +6,10 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   TextInput,
   ScrollView,
+  DeviceEventEmitter,
+  Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -23,6 +24,7 @@ import {
 import { globalStyles, colors } from '../../utils/styles';
 import Header from '../../components/Header';
 import Layout from '../Layout';
+import { showSuccess } from '../../utils/ToastMessage';
 
 const categoryTabs = [
   { label: 'All', value: 'all' },
@@ -43,6 +45,14 @@ const GroupsScreen = () => {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
 
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState({
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    confirmText: 'Confirm',
+    isDestructive: false,
+  });
   const navigation: any = useNavigation();
   const user: any = currentUser();
   const currentUid = user?.uid;
@@ -96,55 +106,65 @@ const GroupsScreen = () => {
   const handleJoinAndOpen = async (groupId: string, group: any) => {
     try {
       await joinGroup(groupId, currentUid);
-      Alert.alert('Joined!', `Welcome to ${group.name}!`);
+      showSuccess('Joined Group');
       openGroupChat(group);
+      await DeviceEventEmitter.emit('refreshConversations');
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      // You might want to show an error modal here as well
+      console.error('Error joining group:', error.message);
     }
   };
 
-  const handleLeave = async (groupId: string) => {
-    Alert.alert('Leave Group', 'Are you sure you want to leave?', [
-      { text: 'Cancel' },
-      {
-        text: 'Leave',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await leaveGroup(groupId, currentUid);
-            Alert.alert('Left Group', 'You have left the group.');
-          } catch (error: any) {
-            Alert.alert('Error', error.message);
-          }
-        },
+  const confirmLeave = (groupId: string) => {
+    setModalConfig({
+      title: 'Leave Group',
+      message: 'Are you sure you want to leave this group?',
+      confirmText: 'Leave',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          await leaveGroup(groupId, currentUid);
+          showSuccess('Left Group');
+          await DeviceEventEmitter.emit('refreshConversations');
+        } catch (error: any) {
+          console.error('Error leaving group:', error.message);
+        }
       },
-    ]);
+    });
+    setModalVisible(true);
   };
 
-  const handleDelete = async (
-    groupId: string,
-    name: string,
-    createdBy: string,
-  ) => {
-    Alert.alert('Delete Group', `Delete "${name}" permanently?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteGroup(groupId, currentUid);
-            Alert.alert('Deleted', `${name} has been deleted.`);
-          } catch (error: any) {
-            Alert.alert('Error', error.message);
-          }
-        },
+  const confirmDelete = (groupId: string, name: string) => {
+    setModalConfig({
+      title: 'Delete Group',
+      message: `Are you sure you want to permanently delete "${name}"? This action cannot be undone.`,
+      confirmText: 'Delete',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          await deleteGroup(groupId, currentUid);
+          await DeviceEventEmitter.emit('refreshConversations');
+        } catch (error: any) {
+          console.error('Error deleting group:', error.message);
+        }
       },
-    ]);
+    });
+    setModalVisible(true);
   };
 
   const openGroupChat = (group: any) => {
     navigation.navigate('Chat', { chatId: group.id, group });
+  };
+
+  const confirmJoin = (group: any) => {
+    setModalConfig({
+      title: 'Join Group?',
+      message: `Join "${group.name}" to start chatting?`,
+      confirmText: 'Join',
+      isDestructive: false,
+      onConfirm: () => handleJoinAndOpen(group.id, group),
+    });
+    setModalVisible(true);
   };
 
   const handleGroupPress = (group: any) => {
@@ -152,13 +172,7 @@ const GroupsScreen = () => {
     if (isMember) {
       openGroupChat(group);
     } else {
-      Alert.alert('Join Group?', `Join "${group.name}" to start chatting?`, [
-        { text: 'Cancel' },
-        {
-          text: 'Join',
-          onPress: () => handleJoinAndOpen(group.id, group),
-        },
-      ]);
+      confirmJoin(group);
     }
   };
 
@@ -267,7 +281,7 @@ const GroupsScreen = () => {
               <TouchableOpacity
                 onPress={() => handleGroupPress(item)}
                 onLongPress={() =>
-                  canDelete && handleDelete(item.id, item.name, item.createdBy)
+                  canDelete && confirmDelete(item.id, item.name)
                 }
                 style={styles.groupCard}
                 activeOpacity={0.8}
@@ -290,7 +304,7 @@ const GroupsScreen = () => {
                   onPress={e => {
                     e.stopPropagation();
                     isMember
-                      ? handleLeave(item.id)
+                      ? confirmLeave(item.id)
                       : handleJoinAndOpen(item.id, item);
                   }}
                   style={[
@@ -309,7 +323,7 @@ const GroupsScreen = () => {
                   <TouchableOpacity
                     onPress={e => {
                       e.stopPropagation();
-                      handleDelete(item.id, item.name, item.createdBy);
+                      confirmDelete(item.id, item.name);
                     }}
                     style={styles.deleteBtn}
                   >
@@ -335,6 +349,56 @@ const GroupsScreen = () => {
             <Icon name="plus" size={26} color="#fff" />
           </TouchableOpacity>
         )}
+
+        {/* Confirmation Modal */}
+        <Modal
+          visible={modalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setModalVisible(false)}
+          statusBarTranslucent
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{modalConfig.title}</Text>
+              <Text style={styles.modalMessage}>{modalConfig.message}</Text>
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={() => setModalVisible(false)}
+                >
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.modalButton,
+                    modalConfig.isDestructive && {
+                      backgroundColor: colors.error,
+                    },
+                  ]}
+                  onPress={() => {
+                    modalConfig.onConfirm();
+                    setModalVisible(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modalButtonText,
+                      {
+                        color: modalConfig.isDestructive
+                          ? '#fff'
+                          : colors.primary,
+                        fontWeight: 'bold',
+                      },
+                    ]}
+                  >
+                    {modalConfig.confirmText}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     </Layout>
   );
@@ -432,6 +496,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    width: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 10,
+  },
+  modalMessage: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  modalButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginLeft: 10,
+  },
+  modalButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.textSecondary,
   },
 });
 

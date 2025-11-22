@@ -21,6 +21,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import Layout from '../Layout';
 import LinearGradient from 'react-native-linear-gradient';
+import { showSuccess } from '../../utils/ToastMessage';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -41,7 +42,8 @@ const LoginScreen = () => {
         isOnline: true,
         lastSeen: serverTimestamp(),
       });
-      Alert.alert('Success', 'Logged in!');
+      // Alert.alert('Success', 'Logged in!');
+      showSuccess('Logged in!');
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }

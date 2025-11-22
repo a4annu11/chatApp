@@ -46,23 +46,29 @@ export const setupConnectionListener = uid => {
 
 // For typing: Update chat doc
 // For typing: Update chat doc
-export const updateTypingStatus = async (chatId, uid, isTyping) => {
+export const updateTypingStatus = async (
+  chatId,
+  uid,
+  isTyping,
+  isGroup = false,
+) => {
   try {
-    const chatDoc = firestore().collection('chats').doc(chatId);
+    const docRef = isGroup
+      ? firestore().collection('groups').doc(chatId)
+      : firestore().collection('chats').doc(chatId);
 
-    // Check if document exists first
-    const snapshot = await chatDoc.get();
+    const snapshot = await docRef.get();
     if (!snapshot.exists) {
-      console.warn('Chat document does not exist:', chatId);
+      console.warn('Document does not exist:', chatId);
       return;
     }
 
     if (isTyping) {
-      await chatDoc.update({
+      await docRef.update({
         typingBy: firestore.FieldValue.arrayUnion(uid),
       });
     } else {
-      await chatDoc.update({
+      await docRef.update({
         typingBy: firestore.FieldValue.arrayRemove(uid),
       });
     }
@@ -166,6 +172,7 @@ export const getUnreadCount = (chatId, uid, isGroup = false) => {
 // };
 
 // Increment unread count for all participants except sender
+// Increment unread count for all participants except sender
 export const incrementUnreadCount = async (
   chatId,
   senderUid,
@@ -173,8 +180,18 @@ export const incrementUnreadCount = async (
   participants = [],
 ) => {
   try {
-    const chatDoc = chatDocRef(chatId);
+    // Use the correct collection based on type
+    const chatDoc = isGroup
+      ? firestore().collection('groups').doc(chatId)
+      : firestore().collection('chats').doc(chatId);
+
     const snapshot = await chatDoc.get();
+
+    if (!snapshot.exists) {
+      console.warn('Document does not exist:', chatId);
+      return;
+    }
+
     const data = snapshot.data();
     const currentUnread = data?.unreadCount || {};
 
@@ -195,9 +212,13 @@ export const incrementUnreadCount = async (
 };
 
 // Mark all messages as read for current user
+// Mark all messages as read for current user
 export const markAsRead = async (chatId, userId, isGroup = false) => {
   try {
-    const chatDoc = chatDocRef(chatId);
+    // Use the correct collection based on type
+    const chatDoc = isGroup
+      ? firestore().collection('groups').doc(chatId)
+      : firestore().collection('chats').doc(chatId);
 
     // Reset unread count to 0
     await chatDoc.update({
@@ -475,6 +496,41 @@ export const unblockUser = async (blockerUid, blockedUid) => {
       });
   } catch (error) {
     console.error('Unblock user error:', error);
+    throw error;
+  }
+};
+
+// Add this function to your existing firebase.js file
+
+// Clear chat for a specific user (marks all messages as deleted for that user)
+export const clearChatForUser = async (chatId, userId, isGroup = false) => {
+  try {
+    const messagesRef = isGroup ? groupMessagesRef(chatId) : chatsRef(chatId);
+
+    // Get all messages in the chat
+    const snapshot = await messagesRef.get();
+
+    if (snapshot.empty) {
+      console.log('No messages to clear');
+      return;
+    }
+
+    // Use batch to update multiple messages at once (more efficient)
+    const batch = firestore().batch();
+
+    snapshot.docs.forEach(doc => {
+      const messageRef = messagesRef.doc(doc.id);
+      batch.update(messageRef, {
+        [`deletedFor.${userId}`]: true,
+      });
+    });
+
+    // Commit all updates at once
+    await batch.commit();
+
+    console.log(`Chat cleared for user ${userId} in chat ${chatId}`);
+  } catch (error) {
+    console.error('Clear chat error:', error);
     throw error;
   }
 };
